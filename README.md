@@ -1,306 +1,247 @@
-# Future Plans for the Connect Samples
+# Using the Omniverse Client Library
 
-- OpenUSD authoring and code samples should reference [OpenUSD Exchange Samples](https://github.com/NVIDIA-Omniverse/usd-exchange-samples) and use the [OpenUSD Exchange SDK](https://github.com/NVIDIA-Omniverse/usd-exchange).
-- These Connect Samples will be updated with guidance and samples on using the [Omniverse Client Library](https://docs.omniverse.nvidia.com/kit/docs/client_library/latest/index.html).
-- The OpenUSD Exchange SDK has replaced the Omniverse Connect SDK for USD authoring.
-- Live Sync and Nucleus support will be documented through the Client Library API and Code Samples in the updated Connect Samples.
+The **Omniverse Client Library** is NVIDIA's C/C++ library (with Python bindings) for
+interacting with Nucleus servers and other content providers — listing folders, reading
+and writing files, managing ACLs and checkpoints, subscribing to changes, and exchanging
+messages over channels.
 
-# Connect Samples for the Omniverse Connect SDK
+This document explains how to **pull the Client Library into your own application** and
+gives a **brief overview of how to use it**. It is intentionally not an exhaustive API
+reference — for the exact behavior of every function, consult the official documentation:
 
-These samples demonstrate some key concepts for writing Omniverse Connectors and Converters. The samples use the OpenUSD and [Omniverse Connect SDK](https://docs.omniverse.nvidia.com/kit/docs/connect-sdk) to demonstrate how to author consistent and correct USD:
+- **Client Library docs:** <https://docs.omniverse.nvidia.com/kit/docs/client_library/latest/index.html>
 
-- [`Omni Asset Validator`](#omni-asset-validator) - A command line validation tool.
-- [`Omni CLI`](#omni-cli) - A command line utility to manage files on a Nucleus server.
-- [`HelloWorld (C++ and Python)`](#helloworld-c-and-python) - A sample program that shows how to connect to an Omniverse Nucleus server, create a USD stage, create a polygonal box, bind a material, add a light, save data to .usd file, create and edit a .live layer, and send/receive messages over a channel on Nucleus. This sample is provided in both C++ and Python to demonstrate the Omniverse APIs for each language.
-- [`LiveSession (C++ and Python)`](#livesession-c-and-python) - A sample program that demonstrates how to create, join, merge, and participate in live sessions. This sample is provided in both C++ and Python to demonstrate the Omniverse APIs for each language.
-- [`OmniUsdaWatcher (C++)`](#omniusdawatcher-c) - A live USD watcher that outputs a constantly updating USDA file on disk.
-- [`OmniSimpleSensor (C++)`](#omnisimplesensor-c) - A C++ program that demonstrates how to connect external input (e.g sensor data) to a USD layer in Nucleus.
+The current reference version of the library is **`omni_client_library` 2.72.1**.
 
-## How to Build
+---
 
-### Build and CI/CD Tools
-The Samples repository uses the [Repo Tools Framework (`repo_man`)](https://docs.omniverse.nvidia.com/kit/docs/repo_man) to configure premake, packman, build and runtime dependencies, testing, formatting, and other tools. Packman is used as a dependency manager for packages like OpenUSD, the Omniverse Client Library, the Omniverse USD Resolver, the Omniverse Asset Validator, and other items. The Samples use the [Connect SDK's standard repoman and packman tooling](https://docs.omniverse.nvidia.com/kit/docs/connect-sdk/1.0.0/docs/details.html#repoman-and-packman) as templates for including and linking against USD, Omniverse Client, etc.  These can serve as an example for the build and runtime configuration that a customer's application might require.  Here's a list of interesting files:
+## 1. Pulling the Client Library
 
-- [premake5.lua](./premake5.lua) - the build configuration file for the samples
-- [prebuild.toml](./prebuild.toml) - consumed by the repo build tools to specify where runtime dependencies should be copied
-- _build/target-deps/omni_connect_sdk/release/dev/tools/premake/connect-sdk-public.lua - the Connect SDK's build configuration template file for including USD, Omniverse Client, the Connect SDK itself, and other libraries.
-  - this file isn't available until dependencies are fetched
-- [source/config/omni.connect.client.toml](./source/config/omni.connect.client.toml) - A configuration file for overriding settings for logging, crash reporting, etc.  Details for how to configure this file are documented in the [Connect SDK's Core and Client Settings](https://docs.omniverse.nvidia.com/kit/docs/connect-sdk/1.0.0/docs/settings-config.html#core-and-client-settings).
+The library is distributed as a versioned, per-platform archive on a CloudFront remote.
+Each package is simply a download from:
 
-For details on choosing and installing Connect SDK build flavors, features, or versions, see the [install_sdk](https://docs.omniverse.nvidia.com/kit/docs/connect-sdk/1.0.0/docs/devtools.html#repo-install-sdk) tool documentation.
-
-### Linux
-This project requires "make" and "g++".
-
-- Open a terminal.
-- To obtain "make" type `sudo apt install make` (Ubuntu/Debian), or `yum install make` (CentOS/RHEL).
-- For "g++" type `sudo apt install g++` (Ubuntu/Debian), or `yum install gcc-c++` (CentOS/RHEL).
-
-Use the provided build script to download all other dependencies (e.g USD), create the Makefiles, and compile the code.
-
-```bash
-./repo.sh build
+```
+https://d4i3qtqj3r0z5.cloudfront.net/${name}@${version}.7z
 ```
 
-Use any of the `run_*.sh` scripts (e.g. `./run_hello_world.sh`) to execute each program with a pre-configured environment.
+where:
 
-> Tip: If you prefer to manage the environment yourself, add `<samplesRoot>/_build/linux64-x86_64/release` to your `LD_LIBRARY_PATH`.
+- `${name}` is `omni_client_library.${platform}`
+- `${platform}` identifies the OS/architecture. The supported platforms are:
+  - `windows-x86_64`
+  - `manylinux_2_35_x86_64`
+  - `manylinux_2_35_aarch64`
+- `${version}` is the library version, e.g. `2.72.1`
 
-For commandline argument help, use `--help`
-```bash
-./run_hello_world.sh --help
+The package is a **7-Zip (`.7z`) archive** — note the `.7z` suffix on the URL. So, for
+example, the Linux aarch64 build of 2.72.1 lives at:
+
+```
+https://d4i3qtqj3r0z5.cloudfront.net/omni_client_library.manylinux_2_35_aarch64@2.72.1.7z
 ```
 
-### Windows
-#### Building
-Use the provided build script to download all dependencies (e.g USD), create the projects, and compile the code.
-```bash
-.\repo.bat build
-```
-
-Use any of the `run_*.bat` scripts (e.g. `.\run_hello_world.bat`) to execute each program with a pre-configured environment.
-
-For commandline argument help, use `--help`
-```bash
-.\run_hello_world.bat --help
-```
-
-#### Building within the Visual Studio IDE
-
-To build within the VS IDE, open `_compiler\vs2019\Samples.sln` in Visual Studio 2019.  The sample C++ code can then be tweaked, debugged, rebuilt, etc. from there.
-
-> Note : If the Launcher installs the Connect Samples into the `%LOCALAPPDATA%` folder, Visual Studio will not "Build" properly when changes are made because there is something wrong with picking up source changes.  Do one of these things to address the issue:
->  - `Rebuild` the project with every source change rather than `Build`
->  - Copy the Connect Samples folder into another folder outside of `%LOCALAPPDATA%`
->  - Make a junction to a folder outside of %LOCALAPPDATA% and open the solution from there:
->    - `mklink /J C:\connect-samples %LOCALAPPDATA%\ov\pkg\connectsample-202.0.0`
-
-#### Changing the MSVC Compiler [Advanced]
-
-When `repo.bat build` is run, a version of the Microsoft Visual Studio Compiler and the Windows 10 SDK are downloaded and referenced by the generated Visual Studio projects.  If a user wants the projects to use an installed version of Visual Studio 2019 then run `repo.bat build --use-devenv`.  Note, the build scripts are configured to tell `premake` to generate VS 2019 project files.  Some plumbing is required to support other Visual Studio versions.
-
-
-## Using the Connect SDK in an Application
-
-See the [Connect SDK Getting Started docs](https://docs.omniverse.nvidia.com/kit/docs/connect-sdk/1.0.0/docs/getting-started.html#integrate-connect-sdk-and-build-a-connector) for a walkthrough of how use the Connect SDK and Open USD in your application.
-
-## Sample Details
-
-The samples listed are focused on these key concepts:
-- Omniverse
-    - Asset Validator
-    - Carbonite
-    - Connect SDK
-        - Initialization
-        - Live Session Workflow
-        - Logging
-    - Client Library
-    - USD Resolver Plugin
-- OpenUSD
-    - USD Cameras
-    - USD Display Names
-    - USD Lights
-    - USD Materials
-    - USD Meshes
-    - USD Prim Names
-    - USD Primvars
-    - USD Stages
-    - USD Xforms
-
-### Omni Asset Validator
-A command line USD validation tool (`omni_asset_validator.bat|sh`).
-
-The Omniverse Asset Validator is a Python framework to provide `Usd.Stage` validation based on the [USD ComplianceChecker](https://github.com/PixarAnimationStudios/OpenUSD/blob/release/pxr/usd/usdUtils/complianceChecker.py) (i.e. the same backend as the usdchecker commandline tool), with an aim to validate assets against Omniverse specific rules to ensure they run smoothly across all Omniverse products.
-
-[Complete Asset Validator Documentation](https://docs.omniverse.nvidia.com/kit/docs/asset-validator/latest/index.html)
-
-To get the supported command line arguments, run omni_asset_validator.bat|sh --help. For example, the `--fix` flag will automatically apply fixes to a stage if possible (not all validation failures are automatically repairable):
+Download the archive for your platform and extract it somewhere in your project (this
+document assumes `deps/omni_client_library`). Extracting a `.7z` requires a 7-Zip tool —
+for example `7z` (from `p7zip-full`) or Python's `py7zr`:
 
 ```bash
-omni_asset_validator.bat|sh --fix omniverse://localhost/Users/test/helloworld.usd
+curl -sSL -o omni_client_library.7z \
+  "https://d4i3qtqj3r0z5.cloudfront.net/omni_client_library.manylinux_2_35_x86_64@2.72.1.7z"
+7z x omni_client_library.7z -odeps/omni_client_library
 ```
 
-The asset validator may also be run against stages in-memory. This is demonstrated in the Python version of the LiveSession example with the v option.
+The archive contains:
 
-### Omni CLI
-A command line utility to manage files on a Nucleus Server (`omnicli.bat|sh`).
+| Path | Contents |
+|------|----------|
+| `include/` | C/C++ headers (`OmniClient.h`, …) |
+| `release/` | Release shared libraries (`libomniclient.so` and `libomniverse_connection.so`, or the `.dll` equivalents) |
+| `debug/` | Debug shared libraries |
+| `release/bindings-python/` | Python bindings (`omni.client`) |
 
-This program was initially created to exercise most of the Omniverse Client Library API, but has grown to be a useful utility to interact with Nucleus servers.  Typing `help` will produce a menu that shows the many functions available.  Among the most useful are the move/copy functions which can transfer data to and from servers.
+(The archive also includes `PACKAGE-LICENSES/` and some packman metadata, which your
+application can ignore.)
 
-### HelloWorld (C++ and Python)
-A sample program that creates a USD stage on a Nucleus server (`run_hello_world.bat|sh` or `run_py_hello_world.bat|sh`).
+> Windows (x86_64) and Linux (x86_64 and aarch64) are supported. macOS is not supported.
 
-The sample demonstrates how to:
+---
 
-- Initialize the Connect SDK Core
-- Connect to a Nucleus server - by default a [`localhost Nucleus Workstation`](https://docs.omniverse.nvidia.com/nucleus/latest/workstation/installation.html)
-- Create a USD stage
-- Create a physics scene to define simulation parameters
-- Create a polygonal box and add it to the stage and make it a dynamic rigid
-- Create a cube and add it to the stage and make it a dynamic rigid
-- Create a quad and add it to the stage and make it a collider
-- Upload an MDL material and its textures to an Omniverse server
-- Create and bind a MDL and USD Preview Surface materials to the box
-- Add a distant and dome light to the stage
-- Add a skinned skeletal mesh quad
-- Add a folder in Nucleus - An empty folder will be generated when first creating the `HelloWorld.usd`.
-- Create Nucleus checkpoints
-- Move and rotate the box with live updates
-- Tweak skeletal mesh animation data with live updates
-- Print verbose Omniverse logs
-- Open an existing stage and find a mesh to do live edits
-- Send and receive messages over a channel on an Omniverse server
+## 2. Using the Client Library from C++
 
-### LiveSession (C++ and Python)
-A sample program that demonstrates how to create, join, merge, and participate in live sessions (`run_live_session.bat|sh` or `run_py_live_session.bat|sh`).
+### Build configuration (CMake)
 
-A .live layer is used in the stage's session layer to contain the changes. An Omniverse channel is used to broadcast users and merge notifications to all clients, and a session config (TOML) file is used to determine the "owner" of the session.
+Point your build at the package's `include/` directory and link against the
+`omniclient` library found under `release/` (or `debug/`):
 
-The sample demonstrates how to:
+```cmake
+cmake_minimum_required(VERSION 3.12)
+project(MyOmniApp)
 
-- Initialize the Omniverse Resolver Plugin
-- Display existing live sessions for a stage
-- Connect to a live session
-- Make xform changes to a mesh prim in the .live layer
-- Rename a prim in the .live layer
-- Display the owner of the live session
-- Display the current connected users/peers in the session
-- Emit a GetUsers message to the session channel
-- Display the contents of the session config
-- Validate a stage using the Omniverse Asset Validator (Python example only)
-- Merge the changes from the .live session back to the root stage
-- Respond (by exiting) when another user merges session changes back to the root stage
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-### OmniUSDAWatcher (C++)
-The Omniverse USDA Watcher is a command line program that keeps an updated USDA file on local disk that maps to a Live USD layer (.live) resident on a Nucleus server (`run_omniUsdaWatcher.bat|sh`).
+# Path to the unpacked package, e.g. set with -DOMNI_CLIENT_DIR=.../deps/omni_client_library
+find_path(OMNICLIENT_INCLUDE NAMES OmniClient.h
+    PATHS ${OMNI_CLIENT_DIR}/include REQUIRED)
 
-It takes two arguments, the USD layer to watch and the output USDA layer:
+find_library(OMNICLIENT_LIB NAMES omniclient
+    PATHS ${OMNI_CLIENT_DIR}/release NO_DEFAULT_PATH)
 
-- Acceptable forms:
-    - URL: `omniverse://localhost/Users/test/helloworld.live`
-    - URL: `C:\USD\helloworld.usda`
-    - A local file path using shell variables: `~\helloworld.usda`
-    - A relative path based on the CWD of the program: `helloworld.usda`
+add_executable(myapp main.cpp)
+target_include_directories(myapp PRIVATE ${OMNICLIENT_INCLUDE})
+target_link_libraries(myapp PRIVATE ${OMNICLIENT_LIB})
 
-Note: Since the version 200.0 releases of the Connect Sample (Client Library 2.x) only `.live` layers synchronize through Nucleus.  This tool will export any supported USD file format as USDA, but if you intend to watch live file edits it must be a `.live` layer.  For more information on where to find the `root.live` layer for Live Sessions, see the [Connect SDK Live Session Configuration File Utilities](https://docs.omniverse.nvidia.com/kit/docs/connect-sdk/1.0.0/api/group__livesessions.html#group__livesessions_1autotoc_md4).
-
-The "watcher" demonstrates how to:
-
-- Initialize Omniverse
-    - Set the Omniverse Client log callback (using a lambda)
-    - Set the Omniverse Client log level
-    - Initialize the Omniverse Client library
-    - Register a connection status callback
-- Open the USD stage
-- Create and register the Sdf layer reload, layer change, and USD notice listeners
-- Subscribe to file changes with omniClientStatSubscribe
-- Start a thread that loops, receiving live changes from other clients (if the specified layer is a ``.live`` layer)
-    - When the stage is modified it's written out to the specified USDA
-- The main thread loops on keyboard input, waiting for a 'q' or ESC
-- Cleanup the callbacks (unsubscribe and revoke)
-- Destroy the stage object
-- Shutdown the Omniverse Client library
-
-For example, to monitor the stage that the HelloWorld sample creates by default in "live" mode:
-
-```bash
-run_omniUsdaWatcher.bat|sh omniverse://localhost/Users/test/helloworld.live C:\USD\helloworld.usda
+if(WIN32)
+    target_link_libraries(myapp PRIVATE shlwapi)
+elseif(UNIX)
+    target_link_libraries(myapp PRIVATE pthread stdc++fs)
+endif()
 ```
 
-### OmniSimpleSensor (C++)
-The Omniverse Simple Sensor example demonstrates how to connect external input (e.g sensor data) to a USD layer in Nucleus(`run_omniSimpleSensor.bat|sh`).
+At runtime, the loader must be able to find the shared libraries. With the CMake setup
+above, CMake embeds the library directory as an RPATH/RUNPATH in the executable, so it
+typically runs without any extra environment setup. If you move the executable, strip its
+RPATH, or load the libraries some other way, point the loader at the `release/` directory:
 
-This could effectively be a large number of inputs that report current values for IoT sensors or could be locations from robots and a real-time synchronization of the data in the virtual world is desired.
+- **Linux:** add `deps/omni_client_library/release` to `LD_LIBRARY_PATH`
+- **Windows:** add `deps\omni_client_library\release` to `PATH`
 
-It takes three arguments, the Nucleus server path, the number of inputs and a timeout value.
+### API overview (C++)
 
-```bash
-run_omniSimpleSensor.bat|sh  <server path> <number of inputs> <timeout>
+The C API is built around asynchronous functions that return a request handle. You start
+a call, optionally pass a completion callback, and use `omniClientWait()` to block until it
+finishes. Initialize once at startup and shut down at exit.
+
+```cpp
+#include <OmniClient.h>
+
+int main()
+{
+    // Optional: route library logs into your application.
+    // Note the log callback signature has no userData argument.
+    omniClientSetLogCallback(
+        [](char const* threadName, char const* component, OmniClientLogLevel level,
+           char const* message) noexcept {
+            printf("%c: %s\n", omniClientGetLogLevelChar(level), message);
+        });
+
+    // Initialize — must succeed before any other call
+    if (!omniClientInitialize(kOmniClientVersion))
+        return 1;
+    omniClientSetLogLevel(eOmniClientLogLevel_Warning);
+
+    // Example: list a folder. The call is async; omniClientWait() blocks until done.
+    int retCode = 0;
+    omniClientWait(omniClientList("omniverse://localhost/Projects", &retCode,
+        [](void* userData, OmniClientResult result, uint32_t numEntries,
+           OmniClientListEntry const* entries) noexcept {
+            if (result != eOmniClientResult_Ok) return;
+            for (uint32_t i = 0; i < numEntries; ++i)
+                printf("%s\n", entries[i].relativePath);
+        }));
+
+    omniClientShutdown();
+    return 0;
+}
 ```
 
-- Acceptable forms
-    - Server Path: `omniverse://localhost/Users/test` (a location on a Nucleus server)
-    - Number of Inputs: `4` (integer value of 1 to any number)
-    - Timeout: `-1 or 20`  (-1 is for infinity to run until killed, otherwise a number in seconds)
+Other operations follow the same pattern: `omniClientStat`, `omniClientCopy`,
+`omniClientMove`, `omniClientDelete`, `omniClientCreateFolder`, `omniClientReadFile`,
+`omniClientWriteFile`, `omniClientGetServerInfo`, `omniClientGetAcls` / `omniClientSetAcls`,
+`omniClientLock` / `omniClientUnlock`, `omniClientCreateCheckpoint` /
+`omniClientListCheckpoints`, and channel messaging. See the documentation for each
+function's parameters and result codes.
 
-For example, `run_omniSimpleSensor.bat omniverse://localhost/Users/test 27 -1`
+---
 
-There are two parts to this project.
+## 3. Using the Client Library from Python
 
-**OmniSimpleSensor** will build a USD with a number of boxes (meshes) on one layer.
+No build step is required — just make the bindings importable and the shared library
+loadable:
 
-- Initialize Omniverse
-- Check for an existing `SimpleSensorExample.live` stage at the `<server path>` location, if it does not exist, create it
-- Edit `SimpleSensorExample.live` at `<server path>`
-- Build a simple array of box meshes, starting with /World/Box_0 then /World/Box_1 and so on
-- Save the Live layer
-- Destroy the stage object
-- Shutdown the Omniverse Client library
+- **Linux:**
+  ```bash
+  export LD_LIBRARY_PATH="deps/omni_client_library/release:$LD_LIBRARY_PATH"
+  export PYTHONPATH="deps/omni_client_library/release/bindings-python:$PYTHONPATH"
+  ```
+- **Windows:**
+  ```batch
+  set PATH=deps\omni_client_library\release;%PATH%
+  set PYTHONPATH=deps\omni_client_library\release\bindings-python;%PYTHONPATH%
+  ```
 
-**OmniSensorThread** is then started for each 'input' specified in the command line.
+The bindings ship as compiled extension modules for **Python 3.10, 3.11, and 3.12** —
+use one of those interpreter versions.
 
-- Initialize Omniverse
-- Open `SimpleSensorExample.live` at `<server path>`
-- Find the box mesh in USD this process will change
-- Create a worker thread to update the box's color every 300ms
-- In the main loop, wait until the timeout occurs, then
-    - Stop the worker thread
-    - Destroy the stage object
-    - Shutdown the Omniverse Client library
+### API overview (Python)
 
-For example, if 6 inputs are specified then there will be 6 OmniSensorThread processes running, independently of each other. The OmniSensorThread will launch a thread that will update the color of its assigned box at a given frequency (300ms in the code, but this can be altered). When opening the `SimpleSensorExample.live` stage in USD Composer the boxes will change colors at regular intervals.
+The Python bindings (`omni.client`) wrap the same functionality with synchronous calls
+that return a result code plus any data:
 
-This project can easily be extended to change the transform of the boxes or to add some metadata with a custom string attached to the USD or do change visibility states.
+```python
+import omni.client
 
-Some things to note here:
+# Optional: route library logs into Python's logging
+omni.client.set_log_callback(lambda thread, comp, level, msg: print(msg))
+omni.client.set_log_level(omni.client.LogLevel.WARNING)
 
-- Using separate processes for each input allows the USD to be changed independently
-- This example could be re-written to have one main process with many worker threads launched for each input. In this case there would need to be a mutex when writing data to same live layer. This will ensure that the writing to USD via the Omniverse Client Library resource is dedicated. Wrapping the mutex around the smallest bit of code writing to USD is recommended in this case to prevent thread starvation (especially when the frequency of input is high).
-- Reading USD via Omniverse Client Library does not have this issue and multiple threads in the same process can read from a USD, even the same layer in USD, without a mutex.
+# Initialize — must succeed before any other call
+if not omni.client.initialize():
+    raise RuntimeError("omni.client.initialize() failed")
 
-## Issues with Self-Signed Certs
-If the scripts from the Connect Sample fail due to self-signed cert issues, a possible workaround would be to do this:
+# Example: list a folder
+result, entries = omni.client.list("omniverse://localhost/Projects")
+if result == omni.client.Result.OK:
+    for entry in entries:
+        print(entry.relative_path)
 
-Install python-certifi-win32 which allows the windows certificate store to be used for TLS/SSL requests:
-
-```bash
-tools\packman\python.bat -m pip install python-certifi-win32 --trusted-host pypi.org --trusted-host files.pythonhosted.org
+# Other examples:
+result, entry = omni.client.stat(url)
+result, version, content = omni.client.read_file(url)
+result = omni.client.copy(src, dst, omni.client.CopyBehavior.OVERWRITE)
+result = omni.client.create_folder(url)
+print(omni.client.get_version())
 ```
 
-## External Support
+Additional functions mirror the C API: `move`, `delete`, `get_server_info`,
+`get_acls` / `set_acls`, `lock` / `unlock`, `create_checkpoint` / `list_checkpoints`,
+`combine_urls`, and channel messaging. Consult the documentation for full signatures.
 
-First search the existing [GitHub Issues](https://github.com/NVIDIA-Omniverse/connect-samples/issues) and the [Connect Samples Forum](https://forums.developer.nvidia.com/c/omniverse/connectors/sample) to see if anyone has reported something similar.
+---
 
-If not, create a new [GitHub Issue](https://github.com/NVIDIA-Omniverse/connect-samples/issues/new) or forum topic explaining your bug or feature request.
+## 4. URLs
 
-- For bugs, please provide clear steps to reproduce the issue, including example failure data as needed.
-- For features, please provide user stories and persona details (i.e. who does this feature help and how does it help them).
+The library addresses content with `omniverse://` URLs, for example:
 
-Whether adding details to an existing issue or creating a new one, please let us know what companies are impacted.
+```
+omniverse://localhost/Projects/myfile.usd
+```
 
+It also handles local paths and other provider schemes (HTTP/S3) where supported. Use
+`omniClientCombineUrls` / `omni.client.combine_urls` to compose relative paths against a
+base URL.
 
-## Licenses
+---
 
-The license for the samples is located in [LICENSE.md](./LICENSE.md).
+## License
 
-Third party license notices for dependencies used by the samples are located in the [Connect SDK License Notices](https://docs.omniverse.nvidia.com/kit/docs/connect-sdk/1.0.0/docs/licenses.html).
+Copyright (c) 2020-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
-## Documentation and learning resources for USD and Omniverse
+Released under the MIT License. Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so, subject to
+including the above copyright notice and this permission notice in all copies or
+substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED.
 
-[OpenUSD Docs - Creating Your First USD Stage](https://openusd.org/docs/Hello-World---Creating-Your-First-USD-Stage.html)
+## Security
 
-[OpenUSD API Docs](https://openusd.org/docs/api/index.html)
+To report a potential security vulnerability in any NVIDIA product:
 
-[OpenUSD User Docs](https://openusd.org/release/index.html)
+- **Web:** <https://www.nvidia.com/object/submit-security-vulnerability.html>
+- **E-Mail:** psirt@nvidia.com ([PGP key](https://www.nvidia.com/en-us/security/pgp-key))
 
-[OpenUSD Tutorials and Examples](https://github.com/NVIDIA-Omniverse/USD-Tutorials-And-Examples)
-
-[OpenUSD Code Samples](https://github.com/NVIDIA-Omniverse/OpenUSD-Code-Samples)
-
-[NVIDIA OpenUSD Docs](https://developer.nvidia.com/usd)
-
-[Omniverse Connect SDK Docs](https://docs.omniverse.nvidia.com/kit/docs/connect-sdk)
-
-[Omniverse Client Library Docs](https://docs.omniverse.nvidia.com/kit/docs/client_library)
-
-[Omniverse USD Resolver Docs](https://docs.omniverse.nvidia.com/kit/docs/usd_resolver)
+Please **do not** report security vulnerabilities through public issue trackers. More
+information: <https://www.nvidia.com/en-us/security>
